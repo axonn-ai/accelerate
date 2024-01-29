@@ -148,8 +148,6 @@ def training_function(config, args):
 
     model = AutoModelForSequenceClassification.from_pretrained(args.model, return_dict=True)
     train_dataloader, eval_dataloader = get_dataloaders(accelerator, args, batch_size)
-    print(len(train_dataloader))
-    exit()
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
 
     if args.activation_checkpointing:
@@ -213,7 +211,7 @@ def training_function(config, args):
 def main():
     parser = argparse.ArgumentParser(description="Simple example of training script.")
     parser.add_argument(
-        "--mixed_precision",
+        "--mixed-precision",
         type=str,
         default=None,
         choices=["no", "fp16", "bf16", "fp8"],
