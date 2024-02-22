@@ -55,6 +55,7 @@ from transformers import (
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 from modify_opt import monkey_patch_opt_with_axonn 
+import matplotlib.pyplot as plt
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.38.0.dev0")
@@ -293,8 +294,8 @@ def main():
         ## todo: these should be moved within axonn.transformers
         monkey_patch_opt_with_axonn()
         ## Adjust batch size 
-        #args.per_device_train_batch_size *= 2
-        #args.per_device_eval_batch_size *= 2
+        args.per_device_train_batch_size *= 2
+        args.per_device_eval_batch_size *= 2
     
 
     # Make one log on every process with the configuration for debugging.
@@ -631,9 +632,11 @@ def main():
 
     # update the progress_bar if load from checkpoint
     progress_bar.update(completed_steps)
+    losses_vs_iterations = []
 
     for epoch in range(starting_epoch, args.num_train_epochs):
         model.train()
+        total_loss = 0
         if args.with_tracking:
             total_loss = 0
         if args.resume_from_checkpoint and epoch == starting_epoch and resume_step is not None:
@@ -646,6 +649,7 @@ def main():
                 outputs = model(**batch)
                 loss = outputs.loss
                 # We keep track of the loss at each epoch
+                total_loss += loss.detach().float()
                 if args.with_tracking:
                     total_loss += loss.detach().float()
                 accelerator.backward(loss)
@@ -666,6 +670,8 @@ def main():
                     accelerator.save_state(output_dir)
             if completed_steps >= args.max_train_steps:
                 break
+        average_loss = total_loss / (step + 1) 
+        losses_vs_iterations.append((epoch, average_loss))
 
         model.eval()
         losses = []
@@ -731,6 +737,10 @@ def main():
 
             with open(os.path.join(args.output_dir, "all_results.json"), "w") as f:
                 json.dump({"perplexity": perplexity}, f)
+    # Print out training loss vs. iterations
+    print("Training Loss vs. Iterations:")
+    for iteration, loss in losses_vs_iterations:
+        print(f"Iteration {iteration}: Loss = {loss}")
 
 
 if __name__ == "__main__":
